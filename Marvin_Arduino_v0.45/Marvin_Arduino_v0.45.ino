@@ -19,7 +19,6 @@
 
 			const int heightInputPin = 12;
 			const int heightInputPin2 = 4;
-			const int lowFrontInputPin = 33;
 			const int rightInputPin = 53;
 			const int leftInputPin = 37;
 			const int landSwitchInputPin = 10;
@@ -31,7 +30,6 @@
 			const int elevatorOutputPin = 9;
 			const int sonicTriggerPin = 7;
 			const int sonicTriggerPin2 = 8;
-			const int sonicTriggerPin3 = 31;
 			const int sonicTriggerPin4 = 51;
 			const int sonicTriggerPin5 = 35;
 
@@ -212,7 +210,6 @@ void loadPins(){
 	pinMode(elevatorInputPin, INPUT);
 	pinMode(heightInputPin, INPUT);
 	pinMode(heightInputPin2, INPUT);
-	pinMode(lowFrontInputPin, INPUT);
 	pinMode(rightInputPin, INPUT);
 	pinMode(leftInputPin, INPUT);
 
@@ -223,7 +220,6 @@ void loadPins(){
 	pinMode(elevatorOutputPin, OUTPUT);
 	pinMode(sonicTriggerPin, OUTPUT);
 	pinMode(sonicTriggerPin2, OUTPUT);
-	pinMode(sonicTriggerPin3, OUTPUT);
 	pinMode(sonicTriggerPin4, OUTPUT);
 	pinMode(sonicTriggerPin5, OUTPUT);
 }
@@ -356,7 +352,7 @@ void readSensors(){
 	//consider creating a sensor object for interfacing with sensors
 	newHeight = verticalHeightInput(heightInputPin, heightInputPin2, sonicTriggerPin, sonicTriggerPin2);
 
-	frontSensor = getSonicDistance(lowFrontInputPin, sonicTriggerPin3);
+	frontSensor = //TODO: LIDAR
 	rightSensor = getSonicDistance(rightInputPin, sonicTriggerPin4);
 	leftSensor = getSonicDistance(leftInputPin, sonicTriggerPin5);
 
@@ -382,7 +378,7 @@ void setMode(){
 }
 
 void setSpot(){
-	frontTarget = getSonicDistance(lowFrontInputPin, sonicTriggerPin3);
+	frontTarget = //TODO: LIDAR
 	rightTarget = getSonicDistance(rightInputPin, sonicTriggerPin4);
 	leftTarget = getSonicDistance(leftInputPin, sonicTriggerPin5);
 	//yawTarget
