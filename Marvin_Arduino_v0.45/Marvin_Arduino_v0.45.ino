@@ -157,10 +157,10 @@ void setup() {
 	initializeVariables();
 
 	//need to change interrupt number if input pins are changed
-	attachInterrupt(3, throttleInterrupt, CHANGE);
-	attachInterrupt(5, yawInterrupt, CHANGE);
-	attachInterrupt(0, aileronInterrupt, CHANGE);
-	attachInterrupt(4, elevatorInterrupt, CHANGE);
+	attachInterrupt(digitalPinToInterrupt(3), throttleInterrupt, CHANGE);
+	attachInterrupt(digitalPinToInterrupt(5), yawInterrupt, CHANGE);
+	attachInterrupt(digitalPinToInterrupt(0), aileronInterrupt, CHANGE);
+	attachInterrupt(digitalPinToInterrupt(4), elevatorInterrupt, CHANGE);
 
 	//CHANGE GOAL HEIGHT HERE:
 	baseHover = 75;
