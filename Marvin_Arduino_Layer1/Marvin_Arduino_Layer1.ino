@@ -13,8 +13,6 @@
 
 		//Input Pins
 			const int autoSwitchInputPin = 14;
-
-			//to use interrupts, these must be on pins 2, 3, or 18-21
 			const int throttleInputPin = 20;
 			const int yawInputPin = 18;
 			const int aileronInputPin = 2; //control roll
@@ -27,12 +25,7 @@
 			const int elevatorOutputPin = 9;
 
 	//STATE VARIABLES
-		String RemoteScalerState = "VALUES";	//states are VALUES and ZEROS
-		String AutoManualState = "MANUAL";		//states are AUTO and MANUAL
-
-	//FLAG
-		//boolean flipFlag; COULD add back in as state flag
-
+		String RemoteScalerState = "MANUAL";	//states are AUTO and MANUAL
 	
 	//INPUTS
 		int autoSwitchValue = 0;
@@ -61,10 +54,9 @@
 
 	//General
 		int heightTarget = 80;
-		int autoThrust = 0;
-		int autoYaw = 188;
-		int autoAileron = 188;
-		int autoElevator = 189;
+		int autoYaw = 0;
+		int autoAileron = 0;
+		int autoElevator = 0;
 
 		int remoteThrust = 0;
 		int remoteYaw = 0;
@@ -76,11 +68,43 @@
     Thread remoteScalerThread = Thread();
     Thread autoManualThread = Thread();
     Thread actuatorExecuteThread = Thread();
-    
+
+
+
+  //ACTUATOR VARIABLES -------------------------------------------------------------------------------
+
+    //PID VARIABLES
+
+    //HEIGHT PID
+      double oldHeight = 0;
+      double newHeight = 0;
+      double hCheck = 0;
+
+      double hoverHeight = 0;
+      
+      double pidThrust = 0;
+      double hoverThrust = 0;
+      double autoThrust = 0;
+
+    //VELOCITY PID
+      double velocity = 0;
+      double vCheck = 0;
+
+      double velGoal = 0;
+
+      double autoVelocity = 0;
+      
+    //PIDS
+		PID heightPID(&newHeight,&pidThrust,&hoverHeight,0.027,0.027,0, DIRECT);
+		PID velocityPID(&velocity,&autoVelocity,&velGoal,1,0,0, DIRECT);
+
+
+//END VARIABLE DECLARATIONS-------------------------------------------------------------------------------------------------------------------------------------
 void setup() {
 	Serial.begin(9600);
 	loadPins();
 	setupThreads();
+	loadPIDS();
 }
 
 void loadPins(){
@@ -104,26 +128,24 @@ void setupThreads(){
 	remoteScalerThread.onRun(remoteScalerModule);
 	controller.add(&remoteScalerThread);
 
-	//AUTO-MANUAL MODULE
-	autoManualThread.setInterval(25);
-	autoManualThread.onRun(autoManualModule);
-	controller.add(&autoManualThread);
-
 
 	//ACTUATOR EXECUTION (not part of the subsumption architecture)
 	actuatorExecuteThread.setInterval(100);
 	actuatorExecuteThread.onRun(executeActuators);
 	controller.add(&actuatorExecuteThread);
 }
+
+void loadPIDS(){
+	heightPID.SetMode(MANUAL);
+	heightPID.SetOutputLimits(0,25);
+
+	velocityPID.SetMode(MANUAL);
+	velocityPID.SetOutputLimits(-3,3);
+
+	heightPID.SetSampleTime(90);
+	velocityPID.SetSampleTime(90);
+}
 //FINISH SETUP--------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
 
 
 
@@ -159,41 +181,23 @@ void remoteScalerModule() {
     //update state
     switch(autoSwitchValue <= 1500){
     	case true:
-    		RemoteScalerState = "VALUES";
-    		//for this state, the general function of the module is all that is used
+    		RemoteScalerState = "MANUAL";
+    		autoThrust = 0;
+    		remoteThrust = abs(remoteThrust - 138) < 2 ? 138 : remoteThrust;
+    		remoteYaw = abs(remoteYaw - 188) < 2 ? 188 : remoteYaw;
+    		remoteAileron = abs(remoteAileron - 188) < 2 ? 188 : remoteAileron; 
+    		remoteElevator = abs(remoteElevator - 188) < 2 ? 188 : remoteElevator;
     		break;
     	case false:
-    		RemoteScalerState = "ZEROS";
-    		remoteThrust = abs(remoteThrust - 138) < 10 ? 0 : (remoteThrust - 138);
-    		remoteYaw = abs(remoteYaw - 188) < 5 ? 0 : (remoteYaw - 188);
-    		remoteAileron = abs(remoteAileron - 188) < 5 ? 0 : (remoteAileron - 188); 
-    		remoteElevator = abs(remoteElevator - 188) < 5 ? 0 : (remoteElevator - 188); 
+    		RemoteScalerState = "AUTO";
+    		autoThrust = 138;
+    		remoteThrust = 0;
+    		remoteYaw = abs(remoteYaw - 188) < 5 ? 188 : remoteYaw;
+    		remoteAileron = abs(remoteAileron - 188) < 5 ? 188 : remoteAileron; 
+    		remoteElevator = abs(remoteElevator - 188) < 5 ? 188 : remoteElevator; 
     }
 }
 //END REMOTE SCALER MODULE----------------------------
-
-
-//AUTO-MANUAL MODULE----------------------------------
-void autoManualModule(){
-	switch(autoSwitchValue <= 1500){
-    	case true:
-    		AutoManualState = "MANUAL";
-    		//turn PI/P controllers off
-    		autoThrust = 0;
-    		yawOut = remoteYaw;
-    		aileronOut = remoteAileron;
-    		elevatorOut = remoteElevator;
-    		break;
-    	case false:
-    		AutoManualState = "AUTO";
-    		//turn PI/P controllers on
-        autoThrust = 138;
-    		yawOut = autoYaw + remoteYaw;
-    		aileronOut = autoAileron + remoteAileron;
-    		elevatorOut = autoElevator + remoteElevator;
-    }
-}
-//END AUTO-MANUAL MODULE------------------------------
 
 //END LAYER 1 --------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -244,38 +248,18 @@ void readRemote(){
 
 void executeActuators(){
   // PI & P controller will go here
-  thrust = remoteThrust + autoThrust;
-  
-  Serial.print("Thrust: ");
+  heightPID.Compute();
+  velocityPID.Compute();
+  thrust = remoteThrust + autoThrust + hoverThrust + autoVelocity;
+  yawOut = remoteYaw + autoYaw;
+  aileronOut = remoteAileron + autoAileron;
+  elevatorOut = remoteElevator + autoElevator;
+
   Serial.println(thrust);
-  Serial.print("Yaw: ");
-  Serial.println(yawOut);
-  Serial.print("Aileron: ");
-  Serial.println(aileronOut);
-  Serial.print("Elevator: ");
-  Serial.println(elevatorOut);
   
   analogWrite(throttleOutputPin, (int)thrust);
   analogWrite(yawOutputPin, (int)yawOut);
   analogWrite(aileronOutputPin, (int)aileronOut);
   analogWrite(elevatorOutputPin, (int)elevatorOut);
 }
-
-/*Not being used right now
-void stableAxes(){
-	if(flipFlag){
-		yawOut += 187;
-		flipFlag = false;
-	} else {
-		yawOut += 188;
-		flipFlag = true;
-	}
-
-	aileronOut += 188;
-	elevatorOut += 190;
-}
-*/
-
-
-
 
